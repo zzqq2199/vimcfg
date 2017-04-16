@@ -1,0 +1,29 @@
+import pymysql
+
+db=pymysql.connect('localhost','root','hijklmn','Expr1')
+
+cursor=db.cursor()
+
+sql='''select food from Ingredients where ingredient='butter' and quantity>16'''
+cursor.execute(sql)
+results=cursor.fetchall()
+print('a.answer: {}'.format(results))
+
+sql="select a.cuisine from Dish a join Ingredients b on a.food=b.food where b.ingredient='cumin' group by cuisine"
+cursor.execute(sql)
+results=cursor.fetchall()
+print('b.answer: {}'.format(results))
+
+
+sqlList=[
+    "select food from Ingredients where ingredient='butter' and quantity>16",
+    "select a.cuisine from Dish a join Ingredients b on a.food=b.food where b.ingredient='cumin' group by cuisine"
+]
+QNo=ord('a')
+for sql in sqlList:
+    cursor.execute(sql)
+    results=cursor.fetchall()
+    print('{}.answer: {}'.format(chr(QNo),results))
+    QNo=QNo+1;
+
+db.close()

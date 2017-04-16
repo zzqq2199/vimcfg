@@ -1,0 +1,19 @@
+import pymysql
+
+db=pymysql.connect('localhost','root','hijklmn','Database0')
+
+cursor=db.cursor()
+
+sql=''' insert into teacher
+        (tch_name,tch_subject,roll_date)
+        values
+        ('Yuhong Li','unKnown',now()'''
+
+try:
+    cursor.execute(sql)
+    db.commit()
+except:
+    print('error')
+    db.rollback()
+
+db.close()

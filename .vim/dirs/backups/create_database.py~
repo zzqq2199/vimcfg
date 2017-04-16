@@ -1,0 +1,20 @@
+import pymysql
+
+db=pymysql.connect('localhost','root','hijklmn','Database0')
+
+cursor=db.cursor()
+
+#cursor.execute('drop table if exists teacher')
+
+sql=''' create table teacher(
+        tch_id int not null auto_increment,
+        tch_name varchar(100) not null,
+        tch_subject varchar(100) not null,
+        roll_date date,
+        primary key(tch_id)
+        )'''
+
+cursor.execute(sql)
+
+db.close()
+

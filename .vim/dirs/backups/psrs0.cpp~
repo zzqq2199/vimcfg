@@ -1,0 +1,165 @@
+#include <stdio.h>
+#include <omp.h>
+#include <stdlib.h>
+#include <mpi.h>
+
+#define MAX_LENGTH 100
+#define MAX_NUMBER 1000
+
+#define getRand(A) rand()%(A)
+
+int a[MAX_LENGTH];
+int collect[size* size];
+int spl[size+1];
+int mulDiv[size][size+1];
+int* b[size];
+int lenb[size];
+
+int printArr(int *a,int len){
+    for (int i=0;i<len;i++){
+        printf("%d ",a[i]);
+    }
+    printf("\n");
+}
+
+int initialize(){
+    for (int i=0;i<MAX_LENGTH;i++){
+        a[i]=getRand(MAX_NUMBER);
+    }
+}
+
+int cmp(const void *a, const void *b){
+    return (*(int *)a - *(int*)b);
+}
+
+int main(){
+
+    initialize();
+
+    printf("show original array:\n");
+    printArr(a,MAX_LENGTH);
+
+
+    int rank,size;
+    int id,size;
+
+    MPI_Init(&argc,&argv);
+    MPI_Comm_rank(MPI_COMM_WORLD,&id);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+    MPI_Status status;
+    
+
+        int from,to;
+        if (id+1<size){
+            from=(MAX_LENGTH/size)*id;
+            to=(MAX_LENGTH/size)*(id+1);
+        }
+        else{
+            from=(MAX_LENGTH/size)*id;
+            to=MAX_LENGTH;
+        }
+        qsort(a+from,to-from,sizeof(int),cmp);
+        for (int i=0;i<size;i++){
+            collect[id*size+i]=a[(to-from+1)/(size+1)*(i+1)-1+from];
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        if (id==0){
+            //============ multi merge============
+            int p=size;
+            int bak[p*p];
+            int pt[p];
+            for (int i=0;i<p;i++){
+                pt[i]=i*p;
+            }
+            for (int k=0;k<p*p;k++){
+                int chi,chv;//choose_i,choose_value
+                chv=MAX_NUMBER+1;
+                for (int i=0;i<p;i++){
+                    if (pt[i]<(i+1)*p){
+                        if (collect[pt[i]]<chv){
+                            chv=collect[pt[i]];
+                            chi=i;
+                        }
+                    }
+                }
+                bak[k]=chv;
+                pt[chi]++;
+            }
+            for (int i=0;i<p*p;i++){
+                collect[i]=bak[i];
+            } 
+            
+            spl[0]=0;
+            for (int i=1;i<p;i++){
+                spl[i]=(collect[i*p-1]+collect[i*p])/2;
+            }
+            spl[p]=MAX_NUMBER+1;
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        {
+            int i=from;
+            mulDiv[id][0]=i;
+            for (int j=1;j<size;j++){
+                while (a[i]<spl[j])
+                    i++;
+                mulDiv[id][j]=i;
+            }
+            mulDiv[id][size]=to;
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        int len=0;
+        for (int i=0;i<size;i++){
+            len+=(mulDiv[i][id+1]-mulDiv[i][id]);
+        }
+        lenb[id]=len;
+        b[id]=(int*)malloc(sizeof(int)*len);
+        int pt[size];
+        for (int i=0;i<size;i++){
+            pt[i]=mulDiv[i][id];
+        }
+        for (int k=0;k<len;k++){
+            int chi,chv;
+            chv=MAX_NUMBER+1;
+            for (int i=0;i<size;i++){
+                if (pt[i]<mulDiv[i][id+1]){
+                    if (a[pt[i]]<chv){
+                        chv=a[pt[i]];
+                        chi=i;
+                    }
+                }
+            }
+            b[id][k]=chv;
+            pt[chi]++;
+        }
+
+#pragma omp barrier
+        if (id==0){
+            int pt[size];
+            for (int i=0;i<size;i++){
+                pt[i]=0;
+            }
+            for (int k=0;k<MAX_LENGTH;k++){
+                int chi,chv;
+                chv=MAX_NUMBER;
+                for (int i=0;i<size;i++){
+                    if (pt[i]<lenb[i]){
+                        if (b[i][pt[i]]<chv){
+                            chv=b[i][pt[i]];
+                            chi=i;
+                        }
+                    }
+                }
+                a[k]=chv;
+                pt[chi]++;
+            }
+        } 
+    }
+    printf("a after sorting:\n");
+    printArr(a,MAX_LENGTH);
+
+
+    return 0;
+}

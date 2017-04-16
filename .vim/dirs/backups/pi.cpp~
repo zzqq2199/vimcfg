@@ -1,0 +1,48 @@
+#include<mpi.h>  
+#include<stdio.h>  
+#include<math.h>  
+#pragma comment(lib,"mpi.lib")  
+  
+#define N 1000000000  
+  
+int main(int argc, char **argv)  
+{  
+      
+    double local = 0, pi, w, temp;  
+    int i, rank, size,k;  
+    w = 1.0 / N;  
+    MPI_Init(&argc, &argv);  
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);  
+    MPI_Comm_size(MPI_COMM_WORLD, &size);  
+    MPI_Status status;  
+    double t1, t2;  
+    t1 = MPI_Wtime();  
+    for (i = rank; i < N; i = i + size)  
+    {         
+        temp = (i + 0.5)*w;  
+        local = 4.0 / (1.0 + temp*temp) + local;  
+    }     
+    if ((rank!=0))  
+          
+        MPI_Send(&local, 1, MPI_DOUBLE, 0, rank, MPI_COMM_WORLD);  
+      
+    if (rank == 0)  
+    for (i = 1; i < size;i++)  
+    {  
+        MPI_Recv(&temp, 1, MPI_DOUBLE,i, i, MPI_COMM_WORLD, &status);  
+        local += temp;  
+    }  
+if (rank == 0)  
+        pi = local;  
+      
+    t2 = MPI_Wtime();  
+    //t = t2 - t1;  
+    if (rank == 0)  
+    {  
+        printf("pi is %lf\n", pi*w);  
+        printf("time is %lf\n", t2-t1);  
+  
+    }  
+    MPI_Finalize();   
+    return 0;  
+}  

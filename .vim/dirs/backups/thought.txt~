@@ -1,0 +1,51 @@
+./main arg0 arg1 ...
+-->ans.txt
+
+
+
+initialize: arglist: arg0,arg1,arg2,arg3,arg4...
+
+./main arglist
+    -->return ans
+
+lastans=ans
+
+forever:
+    newarglist=change(arglist)
+    ./main newarglist
+        -->return ans
+    ans<lastans? 
+        arglist=newarglist,
+        deltaarglist[wct]=deltaarglist[wct]*dlt    //dlt=0.9?
+         : 
+        ;
+
+forever:
+    wct=random(len)
+    sig=1
+    plusarglist=arglist
+    plusarglist[wct]+=deltaarglist[wct]*sig;
+    plusans=calc(plusarglist)
+    sig=-1
+    minusarglist=arglist
+    minusarglist[wct]+=deltaarglist[wct]*sig;
+    minusans=calc(minusarglist)
+    if lastans<=minusans && lastans <=plusans:
+        deltaarglist[wct]*=dlt; //dlt=0.5
+
+
+
+
+
+
+
+initialize deltaarglist
+change(arglist):
+    len=len(deltaarglist)
+    wct=random(len)
+    sig=random(-1,1) //return -1 or 1 , not -1,0,1
+    arglist[wct]+=deltaarglist[wct]*sig;
+    return arglist
+    
+
+

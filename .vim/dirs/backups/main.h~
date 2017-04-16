@@ -1,0 +1,21 @@
+#ifndef DSP_H_
+#define DSP_H_
+#include <iostream>
+#include <stdlib.h>
+#include <string>
+#include <time.h>
+using namespace std;
+
+typedef struct options_tmp options;
+typedef struct interface_tmp interface;
+typedef struct options_tmp{
+    string op_name;
+    int (*p)();
+    struct options_tmp* next;
+}options;
+typedef struct interface_tmp{
+    string title;
+    options ops;
+}interface;
+
+#endif

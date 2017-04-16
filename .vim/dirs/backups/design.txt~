@@ -1,0 +1,46 @@
+log_in
+    name:
+    
+    if name in CUSTOMERS:
+
+    else if name=='HOST'
+
+    else
+        reenter
+
+
+main menu
+[1]administrator
+    passwd:
+        true:
+            function list:
+            [1]inspect
+        false:
+            ->main menu
+[2]customer
+    name:
+        in CUSTOMER:
+            function list:
+            [1]book:
+                book list:
+                [1]flight
+                    flight list:
+                    [1]flight0
+                        ->book list
+                    [2]flight1
+                    ...
+                [2]car
+                    car list:
+                    ...
+                [3]hotels
+            [2]query
+                query list
+                [1]flight
+                    ->query list
+                [2]car
+                [3]hotel
+                [4]me
+        not in CUSTOMER:
+            ->main menu
+
+

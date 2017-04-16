@@ -1,0 +1,16 @@
+#ifndef __ROUTE_H__
+#define __ROUTE_H__
+
+#include "lib_io.h"
+#define MAX_NODE 1000
+#define MAX_EDGE 20
+#define MAX_CONSUME_NODE 500
+
+#define MAX_ANS_LENGTH 1000
+
+
+void deploy_server(char * graph[MAX_EDGE_NUM], int edge_num, char * filename);
+
+	
+
+#endif

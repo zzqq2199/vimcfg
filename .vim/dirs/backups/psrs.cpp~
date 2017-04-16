@@ -1,0 +1,360 @@
+#define MPICH_SKIP_MPICXX 1
+#include <stdio.h>
+#include <stdlib.h>
+#include "mpi.h"
+
+#define INIT_TYPE 10
+#define ALLTOONE_TYPE 100
+#define ONETOALL_TYPE 200
+#define MULTI_TYPE 300
+#define RESULT_TYPE 400
+#define RESULT_LEN 500
+#define MULTI_LEN 600
+
+#define MAX_NUMBER 100
+
+int Spt;
+long DataSize;
+int *arr,*arr1;
+int mylength;
+int *index;
+int *temp1;
+int Psrs_Main( );
+
+int main(int argc,char* argv[])
+{
+    int     PlusNum;
+    int     MyID;
+
+    MPI_Init(&argc,&argv);
+    MPI_Comm_rank(MPI_COMM_WORLD,&MyID);
+    DataSize = 64;
+
+    Psrs_Main();
+
+
+    MPI_Finalize();
+    return 0;
+}
+
+
+int cmp(const void *a,const void *b){
+    return (*(int*)a-*(int*)b);
+}
+
+int printArr(int *a,int len){
+    int MyID,SumID;
+    MPI_Comm_rank(MPI_COMM_WORLD,
+                  &MyID);
+    MPI_Comm_size(MPI_COMM_WORLD,
+                  &SumID);
+    for (int id=0;id<SumID;id++){
+        if (id==MyID){
+            printf("nodeId=%d\n",MyID);
+            for (int i=0;i<len;i++){
+                printf("%d ",a[i]);
+            }
+            printf("\n");
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    if (MyID==0){
+        printf("\n");
+    }
+}
+
+int Psrs_Main( )
+{
+    int i,j;
+    int MyID,SumID;
+    int n,c1,c2,c3,c4,k,l;
+    //FILE * fp;
+    //int ready;
+    MPI_Status status[32*32*2];
+    MPI_Request request[32*32*2];
+
+    MPI_Comm_rank(MPI_COMM_WORLD,
+                  &MyID);
+    MPI_Comm_size(MPI_COMM_WORLD,
+                  &SumID);
+    Spt = SumID-1;
+
+    
+    arr = (int *)malloc(2*DataSize*sizeof(int));
+    arr1 = &arr[DataSize];
+    temp1 = (int *)malloc(sizeof(int)*SumID*Spt);
+    index = (int *)malloc(sizeof(int)*2*SumID);
+
+    MPI_Barrier( MPI_COMM_WORLD);
+
+    mylength = DataSize / SumID;
+    srand(MyID+1);
+
+    for (i=0; i<mylength; i++)
+    {
+        arr[i] = (int)rand()%MAX_NUMBER;
+    }
+
+    if (MyID==0) printf("arr originally: \n");
+    printArr(arr,mylength);
+
+    /*每个处理器将自己的n/P个数据用串行快速
+    排序(Quicksort)，得到一个排好序的序
+    列，对应于算法1步骤（1）*/
+    MPI_Barrier( MPI_COMM_WORLD);
+    qsort(arr,mylength,sizeof(int),cmp);
+    MPI_Barrier( MPI_COMM_WORLD);
+
+ 
+    if (MyID==0) printf("arr ofter sorted loaclly: \n");
+    printArr(arr,mylength);
+
+    /*每个处理器从排好序的序列中选取第w，2w，
+    3w，…，(P-1)w个共P-1个数据作为代
+    表元素，其中w=n/P*P，对应于算法1
+    步骤（2）*/
+    if (SumID>1)
+    {
+        MPI_Barrier(MPI_COMM_WORLD);
+        n = (int)(mylength/(Spt+1));
+        for (i=0; i<Spt; i++)
+            temp1[i] = arr[(i+1)*n-1];
+
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        if (MyID==0)
+        {
+            /*每个处理器将选好的代表元素送
+            到处理器P0中，对应于算法
+            1步骤（3） */
+            j = 0;
+            for (i=1; i<SumID; i++)
+                MPI_Irecv(&temp1[i*Spt],
+                          sizeof(int)*Spt,
+                          MPI_CHAR, i,ALLTOONE_TYPE+i, MPI_COMM_WORLD, &request[j++]);
+
+            MPI_Waitall(SumID-1, request,
+                        status);
+
+            /* 处理器P0将上一步送来的P段
+            有序的数据序列做P路归并，
+            再选择排序后的第P-1，2(P-1)，…，(P-1)(P-1)个共P-1个主元，，对应于算法1步骤（3）*/
+            printf("q*q elements before sorted:\n");
+            for (i=0;i<SumID*Spt;i++){
+                printf("%d ",temp1[i]);
+            }
+            printf("\n");
+
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+            qsort(temp1,SumID*Spt,sizeof(int),cmp);
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+
+            printf("q*q elements after sorted:\n");
+            for (i=0;i<SumID*Spt;i++){
+                printf("%d ",temp1[i]);
+            }
+            printf("\n\n");
+
+
+            for (i=1; i<Spt+1; i++)
+                temp1[i] = temp1[i*Spt-1];
+            MPI_Bcast(temp1,
+                      sizeof(int)*(1+Spt), MPI_CHAR, 0,
+                      MPI_COMM_WORLD);
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+        }
+        else
+        {
+            MPI_Send(temp1,sizeof(int)*Spt,
+                     MPI_CHAR,0,
+                     ALLTOONE_TYPE+MyID, MPI_COMM_WORLD);
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+            MPI_Bcast(temp1,
+                      sizeof(int)*(1+Spt),
+                      MPI_CHAR, 0,
+                      MPI_COMM_WORLD);
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+        }
+
+
+        if (MyID==0) printf("choose p-1 element as division:\n");
+        printArr(temp1,1+Spt);
+
+        n = mylength;
+        index[0] = 0;
+        i = 1;
+        while ((arr[0]>=temp1[i])&&(i<SumID))
+        {
+            index[2*i-1] = 0;
+            index[2*i] = 0;
+            i++;
+        }
+        if (i==SumID)
+            index[2*i-1] = n;
+        c1 = 0;
+        while (i<SumID)
+        {
+            c4 = temp1[i];
+            c3 = n;
+            c2 = (int)((c1+c3)/2);
+            while ((arr[c2]!=c4)&&(c1<c3))
+            {
+                if (arr[c2]>c4)
+                {
+                    c3 = c2-1;
+                    c2 = (int)((c1+c3)/2);
+                }
+                else
+                {
+                    c1 = c2+1;
+                    c2 = (int)((c1+c3)/2);
+                }
+            }
+            while ((arr[c2]<=c4)&&(c2<n))
+                c2++;
+            if (c2==n)
+            {
+                index[2*i-1] = n;
+                for (k=i; k<SumID; k++)
+                {
+                    index[2*k] = 0;
+                    index[2*k+1] = 0;
+                }
+                i = SumID;
+            }
+            else
+            {
+                index[2*i] = c2;
+                index[2*i-1] = c2;
+            }
+            c1 = c2;
+            c2 = (int)((c1+c3)/2);
+            i++;
+        }
+        if (i==SumID)
+            index[2*i-1] = n;
+        MPI_Barrier( MPI_COMM_WORLD);
+
+        if (MyID==0) printf("index: \n");
+        printArr(index,2*SumID);
+
+
+        j = 0;
+        for (i=0; i<SumID; i++)
+        {
+            if (i==MyID)
+            {
+                temp1[i] = index[2*i+1]-
+                           index[2*i];
+                for (n=0; n<SumID; n++)
+                    if (n!=MyID)
+                    {
+                        k = index[2*n+1]-
+                            index[2*n];
+                        MPI_Send(&k,
+                                 sizeof(int), MPI_CHAR, n, MULTI_LEN+MyID,
+                                 MPI_COMM_WORLD);
+                    }
+            }
+            else
+            {
+                MPI_Recv(&temp1[i],
+                         sizeof(int), MPI_CHAR, i,MULTI_LEN+i,
+                         MPI_COMM_WORLD,
+                         &status[j++]);
+            }
+        }
+
+        if (MyID==0) printf("process k should collect temp1[i] elements from process i:\n");
+        printArr(temp1,SumID);
+
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        j = 0;
+        k = 0;
+        l = 0;
+        for (i=0; i<SumID; i++)
+        {
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+            if (i==MyID)
+            {
+                for (n=index[2*i];
+                        n<index[2*i+1];
+                        n++)
+                    arr1[k++] = arr[n];
+            }
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+            if (i==MyID)
+            {
+                for (n=0; n<SumID; n++)
+                    if (n!=MyID)
+                    {
+                        MPI_Send(&arr[
+                                     index[2*n]], sizeof(int)*
+                                 (index[2*n+1]-index[2*n]),MPI_CHAR, n, MULTI_TYPE+MyID, MPI_COMM_WORLD);
+                    }
+
+            }
+            else
+            {
+                l = temp1[i];
+                MPI_Recv(&arr1[k],
+                         l*sizeof(int),
+                         MPI_CHAR,
+                         i ,MULTI_TYPE+i,
+                         MPI_COMM_WORLD,
+                         &status[j++]);
+                k=k+l;
+            }
+            MPI_Barrier(
+                MPI_COMM_WORLD);
+        }
+        mylength = k;
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        if(MyID==0) printf("after collect elements from other processes:\n");
+        printArr(arr1,mylength);
+
+
+
+        //================multi merge=====================
+
+        int pt[SumID];
+        pt[0]=0;
+        for (i=1;i<SumID;i++){
+            pt[i]=pt[i-1]+temp1[i-1];
+        }
+        for (i=0;i<SumID;i++){
+            temp1[i]=temp1[i]+pt[i];
+        }
+        for (k=0;k<mylength;k++){
+            int mini_v=MAX_NUMBER+1;
+            int mini_i=0;
+            for (i=0;i<SumID;i++){
+                if (pt[i]<temp1[i]){
+                    if (arr1[pt[i]]<mini_v){
+                        mini_v=arr1[pt[i]];
+                        mini_i=i;
+                    }
+                }
+            }
+            arr[k]=mini_v;
+            pt[mini_i]++;
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    printArr(arr,mylength);
+    return 0;
+}
+
