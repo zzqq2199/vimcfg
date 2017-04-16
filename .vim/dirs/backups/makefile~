@@ -1,4 +1,0 @@
-psrs.o: psrs.cpp
-	mpicc psrs.cpp -o psrs.o
-clean:
-	rm *.o

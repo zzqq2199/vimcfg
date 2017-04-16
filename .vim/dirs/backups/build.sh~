@@ -1,2 +1,0 @@
-g++ ./Pi4.cpp -fopenmp -o Pi4.o
-./Pi4.o

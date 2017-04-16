@@ -1,3 +1,0 @@
-"select food from Ingredients where ingredient='butter' and quantity>16",
-"select a.cuisine from Dish a join Ingredients b on a.food=b.food where b.ingredient='cumin' group by cuisine"
-
